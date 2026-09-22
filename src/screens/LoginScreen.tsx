@@ -28,9 +28,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const { login, register } = useAuth();
 
   const [isRegistering, setIsRegistering] = useState(false);
-  const [name, setName] = useState('Saboor');
-  const [email, setEmail] = useState('saboor@habittracker.com');
-  const [password, setPassword] = useState('password123');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
@@ -145,7 +145,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                       setName(t);
                       if (errorMsg) setErrorMsg('');
                     }}
-                    placeholder="Saboor"
+                    placeholder="e.g. Harsh"
                     placeholderTextColor={theme.colors.textFaint}
                     style={styles.input}
                     value={name}

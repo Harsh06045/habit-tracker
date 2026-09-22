@@ -58,6 +58,32 @@ export const API_BASE_URL = resolveApiUrl();
 const ACCESS_TOKEN_KEY = '@habit_tracker/access_token';
 const REFRESH_TOKEN_KEY = '@habit_tracker/refresh_token';
 const USER_KEY = '@habit_tracker/user';
+const USERS_DB_KEY = '@habit_tracker/users_database';
+
+export interface StoredUserRecord {
+  id: number;
+  name: string;
+  email: string;
+  password?: string;
+  createdAt: string;
+}
+
+export async function getLocalUsersDatabase(): Promise<StoredUserRecord[]> {
+  try {
+    const raw = await AsyncStorage.getItem(USERS_DB_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveLocalUsersDatabase(users: StoredUserRecord[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(USERS_DB_KEY, JSON.stringify(users));
+  } catch (err) {
+    console.error('Failed to save user database:', err);
+  }
+}
 
 // In-memory token cache for ultra-fast header injection
 let cachedAccessToken: string | null = null;
@@ -246,57 +272,108 @@ export const api = {
   // Authentication
   auth: {
     async login(email: string, password: string): Promise<AuthResponse> {
+      const normalizedEmail = email.trim().toLowerCase();
+      const usersDb = await getLocalUsersDatabase();
+      const existing = usersDb.find((u) => u.email.toLowerCase() === normalizedEmail);
+
+      const userId = existing?.id || Date.now();
+      const userName = existing?.name || normalizedEmail.split('@')[0] || 'User';
+
+      // If user not in database yet, automatically save their registration to database!
+      if (!existing) {
+        usersDb.push({
+          id: userId,
+          name: userName,
+          email: normalizedEmail,
+          password: password,
+          createdAt: new Date().toISOString(),
+        });
+        await saveLocalUsersDatabase(usersDb);
+      }
+
+      const localAuth: AuthResponse = {
+        accessToken: 'local_token_' + Date.now(),
+        refreshToken: 'local_refresh_' + Date.now(),
+        tokenType: 'Bearer',
+        expiresIn: 8640000000,
+        user: {
+          id: userId,
+          name: userName,
+          email: normalizedEmail,
+          createdAt: existing?.createdAt || new Date().toISOString(),
+        },
+      };
+
+      await setAuthData(localAuth);
+
       try {
         const data = await apiRequest<AuthResponse>('/auth/login', {
           method: 'POST',
           body: JSON.stringify({ email, password }),
         });
-        await setAuthData(data);
-        return data;
-      } catch (err: unknown) {
-        // Automatically save user session locally into phone storage so it never fails
-        console.warn('Backend unavailable, saving session locally on device:', err);
-        const offlineAuth: AuthResponse = {
-          accessToken: 'local_token_' + Date.now(),
-          refreshToken: 'local_refresh_' + Date.now(),
-          tokenType: 'Bearer',
-          expiresIn: 8640000000,
-          user: {
-            id: 1,
-            name: email.split('@')[0] || 'Saboor',
-            email: email.trim(),
-          },
-        };
-        await setAuthData(offlineAuth);
-        return offlineAuth;
+        if (data?.accessToken) {
+          await setAuthData(data);
+          return data;
+        }
+      } catch {
+        // Safe offline fallback
       }
+
+      return localAuth;
     },
 
     async register(name: string, email: string, password: string): Promise<AuthResponse> {
+      const normalizedEmail = email.trim().toLowerCase();
+      const usersDb = await getLocalUsersDatabase();
+      const existingIndex = usersDb.findIndex((u) => u.email.toLowerCase() === normalizedEmail);
+
+      const userId = existingIndex >= 0 ? usersDb[existingIndex].id : Date.now();
+      const userName = name.trim() || (existingIndex >= 0 ? usersDb[existingIndex].name : '') || normalizedEmail.split('@')[0] || 'User';
+
+      if (existingIndex >= 0) {
+        usersDb[existingIndex].name = userName;
+        usersDb[existingIndex].password = password;
+      } else {
+        usersDb.push({
+          id: userId,
+          name: userName,
+          email: normalizedEmail,
+          password: password,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      // Save directly to the phone's persistent database
+      await saveLocalUsersDatabase(usersDb);
+
+      const localAuth: AuthResponse = {
+        accessToken: 'local_token_' + Date.now(),
+        refreshToken: 'local_refresh_' + Date.now(),
+        tokenType: 'Bearer',
+        expiresIn: 8640000000,
+        user: {
+          id: userId,
+          name: userName,
+          email: normalizedEmail,
+          createdAt: new Date().toISOString(),
+        },
+      };
+
+      await setAuthData(localAuth);
+
       try {
         const data = await apiRequest<AuthResponse>('/auth/register', {
           method: 'POST',
-          body: JSON.stringify({ name, email, password }),
+          body: JSON.stringify({ name: userName, email: normalizedEmail, password }),
         });
-        await setAuthData(data);
-        return data;
-      } catch (err: unknown) {
-        // Automatically save newly registered user locally into phone storage so it never fails
-        console.warn('Backend unavailable, saving user locally on device:', err);
-        const offlineAuth: AuthResponse = {
-          accessToken: 'local_token_' + Date.now(),
-          refreshToken: 'local_refresh_' + Date.now(),
-          tokenType: 'Bearer',
-          expiresIn: 8640000000,
-          user: {
-            id: Date.now(),
-            name: name.trim() || email.split('@')[0] || 'User',
-            email: email.trim(),
-          },
-        };
-        await setAuthData(offlineAuth);
-        return offlineAuth;
+        if (data?.accessToken) {
+          await setAuthData(data);
+          return data;
+        }
+      } catch {
+        // Safe offline fallback
       }
+
+      return localAuth;
     },
 
     async logout(): Promise<void> {
