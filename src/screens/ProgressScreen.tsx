@@ -80,7 +80,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ navigation }) =>
       }))
     : habits.length > 0
     ? habits.slice(0, 4).map((h, idx) => {
-        const pct = h.completed ? 100 : Math.min(100, (h.streak || 0) * 15 || 50);
+        const pct = h.completed ? 100 : (h.totalCompletions ? Math.min(100, h.totalCompletions * 20) : 0);
         return {
           id: h.id,
           label: h.name.length > 9 ? h.name.slice(0, 8) + '…' : h.name,
@@ -91,19 +91,19 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ navigation }) =>
         };
       })
     : [
-        { id: 1, label: 'Read Book', fullName: 'Read Book', percentage: 85, streak: 7, fillColor: '#3E2F2B' },
-        { id: 2, label: 'Workout', fullName: 'Workout', percentage: 65, streak: 4, fillColor: '#A84D1E' },
-        { id: 3, label: 'Drink Milk', fullName: 'Drink a glass of milk', percentage: 90, streak: 3, fillColor: '#7B9A36' },
-        { id: 4, label: 'Meditate', fullName: 'Meditate to relax', percentage: 75, streak: 6, fillColor: '#DF68C6' },
+        { id: 1, label: 'Read Book', fullName: 'Read Book', percentage: 0, streak: 0, fillColor: '#3E2F2B' },
+        { id: 2, label: 'Workout', fullName: 'Workout', percentage: 0, streak: 0, fillColor: '#A84D1E' },
+        { id: 3, label: 'Drink Water', fullName: 'Drink a glass of water', percentage: 0, streak: 0, fillColor: '#7B9A36' },
+        { id: 4, label: 'Meditate', fullName: 'Meditate to relax', percentage: 0, streak: 0, fillColor: '#DF68C6' },
       ];
 
-  // Calculate points and metrics
-  const totalCompleted = weekStats?.totalCompleted ?? (habits.filter((h) => h.completed).length || 18);
-  const bestStreak = monthStats?.bestStreak ?? (habits.length > 0 ? Math.max(...habits.map((h) => h.streak), 0) : 7);
-  const points = gamification?.totalPoints ?? (totalCompleted * 65 + bestStreak * 30 + 120);
+  // Calculate points and metrics from starting zero state
+  const totalCompleted = weekStats?.totalCompleted ?? habits.filter((h) => h.completed).length;
+  const bestStreak = monthStats?.bestStreak ?? (habits.length > 0 ? Math.max(...habits.map((h) => h.streak), 0) : 0);
+  const points = gamification?.totalPoints ?? (totalCompleted * 10);
   const overallPercentage = timeframe === 'Week'
-    ? (weekStats?.completionPercentage ?? (habits.length > 0 ? Math.round((habits.filter((h) => h.completed).length / habits.length) * 100) : 78))
-    : (monthStats?.completionPercentage ?? 72);
+    ? (weekStats?.completionPercentage ?? (habits.length > 0 ? Math.round((habits.filter((h) => h.completed).length / habits.length) * 100) : 0))
+    : (monthStats?.completionPercentage ?? 0);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -267,7 +267,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ navigation }) =>
                 Level {gamification?.level ?? 1} • {gamification?.levelTitle ?? 'Novice Explorer'}
               </Text>
               <Text style={styles.levelSubText}>
-                {gamification?.totalPoints ?? 45} / {gamification?.nextLevelPoints ?? 100} points to next level
+                {gamification?.totalPoints ?? points} / {gamification?.nextLevelPoints ?? 100} points to next level
               </Text>
             </View>
             <View style={styles.levelBadgePill}>
@@ -283,7 +283,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ navigation }) =>
                 {
                   width: `${Math.min(
                     100,
-                    Math.max(5, gamification?.progressToNextLevel ?? 45),
+                    Math.max(0, gamification?.progressToNextLevel ?? Math.round((points / 100) * 100)),
                   )}%`,
                 },
               ]}
@@ -292,7 +292,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ navigation }) =>
 
           <View style={styles.badgesSectionHeader}>
             <Text style={styles.badgesSectionTitle}>
-              Badges & Achievements ({gamification?.badgesCount ?? 1} Unlocked)
+              Badges & Achievements ({gamification?.badgesCount ?? (totalCompleted > 0 ? 1 : 0)} Unlocked)
             </Text>
           </View>
 
@@ -306,35 +306,35 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ navigation }) =>
                     name: 'First Step',
                     description: 'Completed your first habit!',
                     icon: 'footprints',
-                    unlocked: true,
+                    unlocked: totalCompleted > 0,
                   },
                   {
                     code: 'STREAK_7',
                     name: '7-Day Champion',
                     description: 'Maintained a 7-day streak',
                     icon: 'flame',
-                    unlocked: false,
+                    unlocked: bestStreak >= 7,
                   },
                   {
                     code: 'PERFECT_DAY',
                     name: 'Daily Perfection',
                     description: 'Completed all habits today',
                     icon: 'sparkles',
-                    unlocked: false,
+                    unlocked: habits.length > 0 && habits.every((h) => h.completed),
                   },
                   {
                     code: 'STREAK_30',
                     name: 'Habit Master',
                     description: 'Unbroken 30-day streak',
                     icon: 'trophy',
-                    unlocked: false,
+                    unlocked: bestStreak >= 30,
                   },
                   {
                     code: 'CENTURY_CLUB',
                     name: 'Century Club',
                     description: '100 habit completions',
                     icon: 'award',
-                    unlocked: false,
+                    unlocked: totalCompleted >= 100,
                   },
                 ]
             ).map((badge) => (

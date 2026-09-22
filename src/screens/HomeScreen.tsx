@@ -166,7 +166,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   <View style={styles.gamificationPill}>
                     <Text style={styles.gamificationStar}>⭐</Text>
                     <Text style={styles.gamificationPoints}>
-                      {gamification?.totalPoints ?? 45} pts
+                      {gamification?.totalPoints ?? 0} pts
                     </Text>
                     <Text style={styles.gamificationDivider}>•</Text>
                     <Text style={styles.gamificationLevel}>

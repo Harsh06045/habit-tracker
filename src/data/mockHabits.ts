@@ -1,30 +1,15 @@
 import type { Habit } from '../types';
 
-const getPastDateStr = (daysAgo: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() - daysAgo);
-  return d.toISOString().slice(0, 10);
-};
-
-const d0 = getPastDateStr(0); // Today
-const d1 = getPastDateStr(1); // Yesterday
-const d2 = getPastDateStr(2);
-const d3 = getPastDateStr(3);
-const d4 = getPastDateStr(4);
-const d5 = getPastDateStr(5);
-const d6 = getPastDateStr(6);
-
 /**
- * Seed data for Habit Tracker matching Phase 1 requirements
- * with "Read Book" (streak: 7, completed: true) and "Workout" (streak: 4, completed: false),
- * plus routines matching the user's reference design with rich historical dates.
+ * Clean starter habits with zero completions and zero streaks,
+ * ready for a fresh user to track from the start.
  */
 export const mockHabits: Habit[] = [
   {
     id: 1,
     name: 'Read Book',
-    streak: 7,
-    completed: true,
+    streak: 0,
+    completed: false,
     icon: 'book',
     color: '#FF6B00',
     category: 'Learning',
@@ -32,23 +17,15 @@ export const mockHabits: Habit[] = [
     frequency: 'Daily',
     goal: '20 min',
     reminder: '8:00 PM',
-    createdAt: '2026-09-01',
-    totalCompletions: 21,
-    completedDates: [d0, d1, d2, d3, d4, d5, d6],
-    history: [
-      { date: d0, completed: true },
-      { date: d1, completed: true },
-      { date: d2, completed: true },
-      { date: d3, completed: true },
-      { date: d4, completed: true },
-      { date: d5, completed: true },
-      { date: d6, completed: true },
-    ],
+    createdAt: new Date().toISOString().slice(0, 10),
+    totalCompletions: 0,
+    completedDates: [],
+    history: [],
   },
   {
     id: 2,
     name: 'Workout',
-    streak: 4,
+    streak: 0,
     completed: false,
     icon: 'barbell',
     color: '#DF68C6',
@@ -57,43 +34,33 @@ export const mockHabits: Habit[] = [
     frequency: 'Daily',
     goal: '30 min',
     reminder: '6:30 AM',
-    createdAt: '2026-09-04',
-    totalCompletions: 16,
-    completedDates: [d1, d2, d3, d4],
-    history: [
-      { date: d0, completed: false },
-      { date: d1, completed: true },
-      { date: d2, completed: true },
-      { date: d3, completed: true },
-      { date: d4, completed: true },
-    ],
+    createdAt: new Date().toISOString().slice(0, 10),
+    totalCompletions: 0,
+    completedDates: [],
+    history: [],
   },
   {
     id: 3,
-    name: 'Drink a glass of milk',
-    streak: 3,
-    completed: true,
+    name: 'Drink a glass of water',
+    streak: 0,
+    completed: false,
     icon: 'water',
     color: '#C9773B',
     category: 'Health',
-    description: 'Morning healthy drink for nutrition.',
+    description: 'Stay hydrated throughout the day.',
     frequency: 'Daily',
     goal: '5 min',
     reminder: '7:30 AM',
-    createdAt: '2026-09-10',
-    totalCompletions: 12,
-    completedDates: [d0, d1, d2],
-    history: [
-      { date: d0, completed: true },
-      { date: d1, completed: true },
-      { date: d2, completed: true },
-    ],
+    createdAt: new Date().toISOString().slice(0, 10),
+    totalCompletions: 0,
+    completedDates: [],
+    history: [],
   },
   {
     id: 4,
     name: 'Meditate to relax',
-    streak: 6,
-    completed: true,
+    streak: 0,
+    completed: false,
     icon: 'leaf',
     color: '#25B76B',
     category: 'Mindfulness',
@@ -101,22 +68,15 @@ export const mockHabits: Habit[] = [
     frequency: 'Daily',
     goal: '15 min',
     reminder: '7:00 AM',
-    createdAt: '2026-09-06',
-    totalCompletions: 19,
-    completedDates: [d0, d1, d2, d3, d4, d5],
-    history: [
-      { date: d0, completed: true },
-      { date: d1, completed: true },
-      { date: d2, completed: true },
-      { date: d3, completed: true },
-      { date: d4, completed: true },
-      { date: d5, completed: true },
-    ],
+    createdAt: new Date().toISOString().slice(0, 10),
+    totalCompletions: 0,
+    completedDates: [],
+    history: [],
   },
   {
     id: 5,
     name: 'Stretch for 10 minutes',
-    streak: 5,
+    streak: 0,
     completed: false,
     icon: 'fitness',
     color: '#4F8CFF',
@@ -125,17 +85,10 @@ export const mockHabits: Habit[] = [
     frequency: 'Daily',
     goal: '10 min',
     reminder: '9:00 AM',
-    createdAt: '2026-09-08',
-    totalCompletions: 14,
-    completedDates: [d1, d2, d3, d4, d5],
-    history: [
-      { date: d0, completed: false },
-      { date: d1, completed: true },
-      { date: d2, completed: true },
-      { date: d3, completed: true },
-      { date: d4, completed: true },
-      { date: d5, completed: true },
-    ],
+    createdAt: new Date().toISOString().slice(0, 10),
+    totalCompletions: 0,
+    completedDates: [],
+    history: [],
   },
 ];
 
