@@ -239,6 +239,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               }
             />
 
+            {/* Instant Demo Enter Button */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={async () => {
+                setIsLoading(true);
+                try {
+                  await login(email || 'saboor@habittracker.com', password || 'password123');
+                  navigation.navigate('MainTabs');
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              style={styles.instantDemoBtn}
+            >
+              <Ionicons color="#FF6B00" name="flash" size={16} />
+              <Text style={styles.instantDemoBtnText}>⚡ Instant Demo Access (Offline-Ready)</Text>
+            </TouchableOpacity>
+
             {/* Quick Demo Fill Buttons */}
             <View style={styles.demoSection}>
               <Text style={styles.demoSectionLabel}>Quick Demo Fill:</Text>
@@ -470,5 +488,23 @@ const styles = StyleSheet.create({
     color: '#847D77',
     fontSize: 14,
     fontWeight: '600',
+  },
+  instantDemoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    backgroundColor: '#FFF4EB',
+    borderWidth: 1,
+    borderColor: '#FFD4B8',
+    borderRadius: theme.radius.md,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+  },
+  instantDemoBtnText: {
+    color: '#FF6B00',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

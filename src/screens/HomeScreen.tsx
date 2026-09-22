@@ -37,9 +37,13 @@ interface HomeScreenProps {
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { user } = useAuth();
   const { habits, toggleHabit, isHydrated, isLoading, refreshHabits } = useHabits();
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [filterMode, setFilterMode] = useState<'Today' | 'All' | 'Pending'>('Today');
   const [gamification, setGamification] = useState<GamificationProfile | null>(null);
   const [pointsToast, setPointsToast] = useState<string | null>(null);
+
+  const isViewingToday = selectedDate === todayStr;
 
   const loadGamification = async () => {
     try {
@@ -56,7 +60,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   const handleToggle = async (habit: Habit) => {
     const willBeCompleted = !habit.completed;
-    await toggleHabit(habit.id);
+    await toggleHabit(habit.id, selectedDate);
     if (willBeCompleted) {
       const bonus = habit.streak + 1 === 7 ? ' (+50 Streak Bonus! 🔥)' : '';
       setPointsToast(`+10 Points Earned! ⭐${bonus}`);
@@ -65,31 +69,52 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     loadGamification();
   };
 
-  // Format date like "Thursday, 10 March, 2025"
-  const formattedDate = useMemo(() => {
-    const d = new Date();
-    const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
-    const day = d.getDate();
-    const month = d.toLocaleDateString('en-US', { month: 'long' });
-    const year = d.getFullYear();
-    return `${weekday}, ${day} ${month}, ${year}`;
+  // Dynamically compute greeting according to the real local time of the day
+  const timeGreeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'Good Morning,';
+    if (hour >= 12 && hour < 17) return 'Good Afternoon,';
+    if (hour >= 17 && hour < 22) return 'Good Evening,';
+    return 'Good Night,';
   }, []);
 
-  const displayedHabits = useMemo(() => {
-    const dayOfWeek = new Date().getDay(); // 0 = Sun, 1-5 = Mon-Fri, 6 = Sat
+  // Format date like "Thursday, 10 March, 2025" or the selected past date
+  const formattedHeaderDate = useMemo(() => {
+    const [y, m, d] = (isViewingToday ? todayStr : selectedDate).split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    const weekday = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+    const day = dateObj.getDate();
+    const month = dateObj.toLocaleDateString('en-US', { month: 'long' });
+    const year = dateObj.getFullYear();
+    return `${weekday}, ${day} ${month}, ${year}`;
+  }, [isViewingToday, todayStr, selectedDate]);
 
-    if (filterMode === 'Today') {
-      return habits.filter((h) => {
-        if (!h.frequency || h.frequency === 'Daily') return true;
-        if (h.frequency === 'Weekdays') return dayOfWeek >= 1 && dayOfWeek <= 5;
+  // Check if a habit was completed on the selectedDate
+  const isHabitCompletedOnDate = (habit: Habit, dateStr: string) => {
+    if (dateStr === todayStr) return habit.completed;
+    if (habit.completedDates?.includes(dateStr)) return true;
+    return habit.history?.some((entry) => entry.date === dateStr && entry.completed) ?? false;
+  };
+
+  const displayedHabits = useMemo(() => {
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const dayOfWeek = new Date(y, m - 1, d).getDay(); // 0 = Sun, 1-5 = Mon-Fri, 6 = Sat
+
+    return habits
+      .map((h) => ({
+        ...h,
+        completed: isHabitCompletedOnDate(h, selectedDate),
+      }))
+      .filter((h) => {
+        if (filterMode === 'Today') {
+          return true;
+        }
+        if (filterMode === 'Pending') {
+          return !h.completed;
+        }
         return true;
       });
-    }
-    if (filterMode === 'Pending') {
-      return habits.filter((h) => !h.completed);
-    }
-    return habits;
-  }, [habits, filterMode]);
+  }, [habits, selectedDate, todayStr, filterMode]);
 
   const renderHabitItem = ({ item, index }: { item: Habit; index: number }) => (
     <HabitCard
@@ -132,8 +157,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               {/* Top User Greeting Bar */}
               <View style={styles.topHeaderRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.greetingTitle}>Morning, {user?.name || 'Saboor'}</Text>
-                  <Text style={styles.dateSubtitle}>{formattedDate}</Text>
+                  <Text style={styles.greetingTitle}>
+                    {isViewingToday ? `${timeGreeting}\nHi 👋` : 'Viewing History'}
+                  </Text>
+                  <Text style={styles.dateSubtitle}>{formattedHeaderDate}</Text>
 
                   {/* Gamification Points & Level Pill */}
                   <View style={styles.gamificationPill}>
@@ -162,8 +189,33 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
               {/* Weekly Calendar Strip */}
               <View style={styles.calendarWrapper}>
-                <WeeklyCalendarBar />
+                <WeeklyCalendarBar
+                  habits={habits}
+                  onSelectDate={(date) => setSelectedDate(date)}
+                  selectedDate={selectedDate}
+                />
               </View>
+
+              {/* Historical Browsing Indicator Banner */}
+              {!isViewingToday && (
+                <View style={styles.historyBanner}>
+                  <View style={styles.historyBannerLeft}>
+                    <Ionicons color="#FF6B00" name="time-outline" size={17} />
+                    <View>
+                      <Text style={styles.historyBannerTitle}>Viewing Past Date Records</Text>
+                      <Text style={styles.historyBannerSub}>{formattedHeaderDate}</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() => setSelectedDate(todayStr)}
+                    style={styles.returnTodayBtn}
+                  >
+                    <Ionicons color="#FFFFFF" name="arrow-undo" size={12} />
+                    <Text style={styles.returnTodayBtnText}>Today</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {/* "Set the reminder" Promo Card */}
               <View style={styles.reminderCard}>
@@ -261,6 +313,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: theme.colors.text,
     letterSpacing: -0.4,
+    lineHeight: 30,
   },
   dateSubtitle: {
     fontSize: 13,
@@ -475,5 +528,48 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.3,
+  },
+  historyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF8F4',
+    borderWidth: 1,
+    borderColor: '#FFD9C2',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  historyBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  historyBannerTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FF6B00',
+  },
+  historyBannerSub: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#7C736B',
+  },
+  returnTodayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#221C18',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  returnTodayBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

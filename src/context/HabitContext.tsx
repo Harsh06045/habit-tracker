@@ -16,13 +16,14 @@ import { isOnline } from '../services/network';
 import { syncQueue } from '../services/syncQueue';
 import { syncEngine } from '../services/syncEngine';
 import { scheduleAllHabitReminders, scheduleHabitReminder } from '../services/notifications';
+import { mockHabits } from '../data/mockHabits';
 import type { Habit, HabitHistoryEntry, HabitId, HabitInput, HabitUpdate } from '../types';
 
 type HabitAction =
   | { type: 'set_all'; habits: Habit[] }
   | { type: 'set_single'; habit: Habit }
-  | { type: 'toggle_optimistic'; id: HabitId }
-  | { type: 'toggle_confirmed'; id: HabitId; streak: number; completed: boolean }
+  | { type: 'toggle_optimistic'; id: HabitId; targetDate?: string }
+  | { type: 'toggle_confirmed'; id: HabitId; streak: number; completed: boolean; targetDate?: string }
   | { type: 'add'; habit: Habit }
   | { type: 'delete'; id: HabitId }
   | { type: 'update'; id: HabitId; changes: HabitUpdate }
@@ -32,7 +33,7 @@ export interface HabitContextValue {
   habits: Habit[];
   isHydrated: boolean;
   isLoading: boolean;
-  toggleHabit: (id: HabitId) => Promise<void>;
+  toggleHabit: (id: HabitId, targetDate?: string) => Promise<void>;
   addHabit: (input: HabitInput) => Promise<Habit>;
   deleteHabit: (id: HabitId) => Promise<void>;
   updateHabit: (id: HabitId, changes: HabitUpdate) => Promise<void>;
@@ -86,31 +87,47 @@ export const habitReducer = (state: Habit[], action: HabitAction): Habit[] => {
 
     case 'toggle_optimistic': {
       const today = toDateKey();
+      const targetDate = action.targetDate || today;
+      const isTargetToday = targetDate === today;
+
       return state.map((habit) => {
         if (habit.id !== action.id) return habit;
-        const completed = !habit.completed;
+        const wasCompleted = isTargetToday
+          ? habit.completed
+          : (habit.completedDates?.includes(targetDate) ||
+             habit.history?.some((e) => e.date === targetDate && e.completed) ||
+             false);
+        const nextCompleted = !wasCompleted;
         const previousTotal = habit.totalCompletions ?? habit.history?.filter((e) => e.completed).length ?? 0;
+
         return {
           ...habit,
-          completed,
-          streak: completed ? habit.streak + 1 : Math.max(0, habit.streak - 1),
-          totalCompletions: Math.max(0, previousTotal + (completed ? 1 : -1)),
-          history: updateTodayHistory(habit.history, today, completed),
-          completedDates: updateCompletedDates(habit.completedDates, today, completed),
+          completed: isTargetToday ? nextCompleted : habit.completed,
+          streak: isTargetToday
+            ? nextCompleted
+              ? habit.streak + 1
+              : Math.max(0, habit.streak - 1)
+            : habit.streak,
+          totalCompletions: Math.max(0, previousTotal + (nextCompleted ? 1 : -1)),
+          history: updateTodayHistory(habit.history, targetDate, nextCompleted),
+          completedDates: updateCompletedDates(habit.completedDates, targetDate, nextCompleted),
         };
       });
     }
 
     case 'toggle_confirmed': {
       const today = toDateKey();
+      const targetDate = action.targetDate || today;
+      const isTargetToday = targetDate === today;
+
       return state.map((habit) => {
         if (habit.id !== action.id) return habit;
         return {
           ...habit,
-          completed: action.completed,
+          completed: isTargetToday ? action.completed : habit.completed,
           streak: action.streak,
-          history: updateTodayHistory(habit.history, today, action.completed),
-          completedDates: updateCompletedDates(habit.completedDates, today, action.completed),
+          history: updateTodayHistory(habit.history, targetDate, action.completed),
+          completedDates: updateCompletedDates(habit.completedDates, targetDate, action.completed),
         };
       });
     }
@@ -162,14 +179,22 @@ export function HabitProvider({ children }: PropsWithChildren) {
         if (stored && stored.length > 0) {
           dispatch({ type: 'set_all', habits: stored });
           scheduleAllHabitReminders(stored);
+        } else {
+          dispatch({ type: 'set_all', habits: mockHabits });
+          await saveHabitsToStorage(mockHabits);
+          scheduleAllHabitReminders(mockHabits);
         }
       }
     } catch (err) {
       console.warn('Could not fetch habits from server, using cached storage:', err);
       const stored = await loadHabitsFromStorage();
-      if (stored) {
+      if (stored && stored.length > 0) {
         dispatch({ type: 'set_all', habits: stored });
         scheduleAllHabitReminders(stored);
+      } else {
+        dispatch({ type: 'set_all', habits: mockHabits });
+        await saveHabitsToStorage(mockHabits);
+        scheduleAllHabitReminders(mockHabits);
       }
     } finally {
       setIsLoading(false);
@@ -201,22 +226,30 @@ export function HabitProvider({ children }: PropsWithChildren) {
   }, [habits, isHydrated]);
 
   const toggleHabit = useCallback(
-    async (id: HabitId) => {
+    async (id: HabitId, targetDate?: string) => {
       const targetHabit = habits.find((h) => h.id === id);
       if (!targetHabit) return;
 
+      const dateToUse = targetDate || toDateKey();
+      const isTargetToday = dateToUse === toDateKey();
+
       // 1. Optimistic UI update
-      dispatch({ type: 'toggle_optimistic', id });
+      dispatch({ type: 'toggle_optimistic', id, targetDate: dateToUse });
 
-      const nextCompleted = !targetHabit.completed;
+      const wasCompleted = isTargetToday
+        ? targetHabit.completed
+        : (targetHabit.completedDates?.includes(dateToUse) ||
+           targetHabit.history?.some((e) => e.date === dateToUse && e.completed) ||
+           false);
+      const nextCompleted = !wasCompleted;
 
-      // If offline, enqueue operation
-      if (!isOnline()) {
+      // If offline or toggling past date, enqueue operation
+      if (!isOnline() || !isTargetToday) {
         await syncQueue.enqueue({
           type: nextCompleted ? 'COMPLETE_HABIT' : 'UNCOMPLETE_HABIT',
           tempId: id < 0 ? String(id) : undefined,
           habitId: id > 0 ? id : undefined,
-          date: toDateKey(),
+          date: dateToUse,
         });
         return;
       }
@@ -234,6 +267,7 @@ export function HabitProvider({ children }: PropsWithChildren) {
             id,
             streak: res.streak,
             completed: res.completed,
+            targetDate: dateToUse,
           });
         }
       } catch (err) {
@@ -242,7 +276,7 @@ export function HabitProvider({ children }: PropsWithChildren) {
           type: nextCompleted ? 'COMPLETE_HABIT' : 'UNCOMPLETE_HABIT',
           tempId: id < 0 ? String(id) : undefined,
           habitId: id > 0 ? id : undefined,
-          date: toDateKey(),
+          date: dateToUse,
         });
       }
     },
