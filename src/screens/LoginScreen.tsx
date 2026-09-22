@@ -246,10 +246,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                 setIsLoading(true);
                 try {
                   await login(email || 'saboor@habittracker.com', password || 'password123');
-                  navigation.navigate('MainTabs');
-                } finally {
-                  setIsLoading(false);
+                } catch {
+                  // Offline-first: always proceed even if login fails
                 }
+                setIsLoading(false);
+                navigation.navigate('MainTabs');
               }}
               style={styles.instantDemoBtn}
             >

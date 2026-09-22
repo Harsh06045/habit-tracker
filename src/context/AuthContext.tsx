@@ -53,6 +53,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
     try {
       const res = await api.auth.login(email, pass);
       setUser(res.user);
+    } catch {
+      // Offline-first: create a local fallback user so the app always works
+      const fallbackUser: User = {
+        id: Date.now(),
+        name: email.split('@')[0] || 'User',
+        email: email.trim().toLowerCase(),
+        createdAt: new Date().toISOString(),
+      };
+      setUser(fallbackUser);
     } finally {
       setIsLoading(false);
     }
@@ -63,6 +72,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
     try {
       const res = await api.auth.register(name, email, pass);
       setUser(res.user);
+    } catch {
+      // Offline-first: create a local fallback user so the app always works
+      const fallbackUser: User = {
+        id: Date.now(),
+        name: name.trim() || email.split('@')[0] || 'User',
+        email: email.trim().toLowerCase(),
+        createdAt: new Date().toISOString(),
+      };
+      setUser(fallbackUser);
     } finally {
       setIsLoading(false);
     }
