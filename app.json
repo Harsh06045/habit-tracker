@@ -37,7 +37,7 @@
       "bundler": "metro"
     },
     "extra": {
-      "apiUrl": "http://localhost:8080/api/v1"
+      "apiUrl": "https://habit-tracker-6x3i.onrender.com/api/v1"
     },
     "plugins": []
   }

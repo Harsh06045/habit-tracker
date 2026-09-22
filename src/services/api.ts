@@ -17,39 +17,32 @@ import type {
 
 /**
  * API Base URL Configuration
- * Priority:
- *   1. app.json → expo.extra.apiUrl (for production / custom deployments)
- *   2. Platform-specific fallback for local development
  */
-function resolveApiUrl(): string {
-  // 1. If running in a web browser, automatically use current host for seamless local/LAN access
-  if (typeof window !== 'undefined' && window.location) {
-    const hostname = window.location.hostname;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:8080/api/v1';
-    }
-    if (/^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(hostname)) {
-      return `http://${hostname}:8080/api/v1`;
-    }
-  }
+export const CLOUD_API_URL = 'https://habit-tracker-6x3i.onrender.com/api/v1';
 
-  // 2. Check Expo Config
+function resolveApiUrl(): string {
+  // 1. Check Expo Config
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const Constants = require('expo-constants').default;
     const configUrl = Constants?.expoConfig?.extra?.apiUrl;
-    if (configUrl && configUrl !== 'http://localhost:8080/api/v1') {
+    if (configUrl) {
       return configUrl;
     }
   } catch {
     // expo-constants not available, use fallback
   }
 
-  // 3. Fallbacks
-  if (Platform.OS === 'android') {
-    return 'http://10.114.198.251:8080/api/v1'; // Wi-Fi IP for native Android
+  // 2. Local dev browser fallback
+  if (typeof window !== 'undefined' && window.location) {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:8080/api/v1';
+    }
   }
-  return 'http://localhost:8080/api/v1'; // Web / iOS
+
+  // 3. Live Cloud Backend for Android APK & Mobile
+  return CLOUD_API_URL;
 }
 
 export const API_BASE_URL = resolveApiUrl();
