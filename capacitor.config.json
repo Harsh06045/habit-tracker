@@ -1,0 +1,9 @@
+{
+  "appId": "com.harsh.habittracker",
+  "appName": "HabitFlow",
+  "webDir": "dist",
+  "server": {
+    "cleartext": true,
+    "androidScheme": "https"
+  }
+}
