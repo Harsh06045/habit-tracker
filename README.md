@@ -4,6 +4,24 @@ A modern, full-stack habit tracking platform built with **React Native / Expo / 
 
 ---
 
+### 📲 Download Android APK (Direct Install)
+
+> [!IMPORTANT]
+> **To install the app on your Android phone, download the `.apk` file directly:**
+> - ⚠️ **Do NOT click "Download ZIP" on GitHub** — that downloads the raw source code!
+> - ⚠️ **Do NOT "Extract" the `.apk` file** — an APK is an installer package. Simply tap it on your phone and choose **Install**!
+
+👉 **[Download HabitFlow.apk (Direct Installer)](https://github.com/Harsh06045/habit-tracker/raw/main/HabitFlow.apk)** *(6.77 MB)*
+
+#### 📱 How to Install on Android:
+1. Tap the link above to download **`HabitFlow.apk`** to your phone.
+2. When the download finishes, tap the notification or open your phone's **Files / Downloads** app.
+3. Tap **`HabitFlow.apk`** (do not choose extract).
+4. Tap **Install** (if prompted to allow unknown apps, enable permission for your browser/file manager).
+5. Open **HabitFlow** and enjoy tracking habits!
+
+---
+
 ## 🌟 Key Features
 
 - **📱 Mobile App & Web App**: Built with React Native & Expo. Works as an Android APK, iOS app, and Web application.
