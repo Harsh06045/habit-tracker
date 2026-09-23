@@ -19,6 +19,7 @@ import { Button } from '../components/Button';
 import { Header } from '../components/Header';
 import { useHabits } from '../context/HabitContext';
 import { theme } from '../theme';
+import { getLocalDateKey, getMondayOfWeek } from '../utils/date';
 
 type HabitDetailScreenRouteProp = RouteProp<RootStackParamList, 'HabitDetail'>;
 type HabitDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'HabitDetail'>;
@@ -109,29 +110,42 @@ export const HabitDetailScreen: React.FC<HabitDetailScreenProps> = ({
         <View style={styles.card}>
           <Text style={styles.cardHeader}>THIS WEEK'S ROUTINE</Text>
           <View style={styles.weekTrackRow}>
-            {dayNames.map((day, idx) => {
-              const isToday = idx === 3; // Thursday
-              const isChecked = idx < 3 ? true : idx === 3 ? habit.completed : false;
+            {(() => {
+              const today = new Date();
+              const todayStr = getLocalDateKey(today);
+              const monday = getMondayOfWeek(today);
 
-              return (
-                <View key={day} style={styles.dayTrackItem}>
-                  <Text style={[styles.dayTrackLabel, isToday && styles.dayTrackLabelToday]}>
-                    {day}
-                  </Text>
-                  <View
-                    style={[
-                      styles.dayTrackCircle,
-                      isChecked && styles.dayTrackCircleChecked,
-                      isToday && !isChecked && styles.dayTrackCircleToday,
-                    ]}
-                  >
-                    {isChecked ? (
-                      <Ionicons color="#FFFFFF" name="checkmark" size={13} />
-                    ) : null}
+              return dayNames.map((day, idx) => {
+                const dateObj = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + idx);
+                const dateStr = getLocalDateKey(dateObj);
+                const isToday = dateStr === todayStr;
+                const isChecked =
+                  isToday
+                    ? habit.completed
+                    : (habit.completedDates?.includes(dateStr) ||
+                       habit.history?.some((e) => e.date === dateStr && e.completed) ||
+                       false);
+
+                return (
+                  <View key={day} style={styles.dayTrackItem}>
+                    <Text style={[styles.dayTrackLabel, isToday && styles.dayTrackLabelToday]}>
+                      {day}
+                    </Text>
+                    <View
+                      style={[
+                        styles.dayTrackCircle,
+                        isChecked && styles.dayTrackCircleChecked,
+                        isToday && !isChecked && styles.dayTrackCircleToday,
+                      ]}
+                    >
+                      {isChecked ? (
+                        <Ionicons color="#FFFFFF" name="checkmark" size={13} />
+                      ) : null}
+                    </View>
                   </View>
-                </View>
-              );
-            })}
+                );
+              });
+            })()}
           </View>
         </View>
 
@@ -174,7 +188,7 @@ export const HabitDetailScreen: React.FC<HabitDetailScreenProps> = ({
               <Ionicons color="#847D77" name="calendar-outline" size={18} />
               <Text style={styles.detailLabel}>Start Date</Text>
             </View>
-            <Text style={styles.detailValue}>{habit.startDate || habit.createdAt || '2026-09-01'}</Text>
+            <Text style={styles.detailValue}>{habit.startDate || habit.createdAt || getLocalDateKey()}</Text>
           </View>
         </View>
 

@@ -153,7 +153,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
 
         {/* Phase 8: Habit Reminders & Notifications */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionLabel}>PHASE 8 — REMINDERS & NOTIFICATIONS</Text>
+          <Text style={styles.sectionLabel}>REMINDERS & NOTIFICATIONS</Text>
 
           <View style={styles.settingRow}>
             <View style={styles.settingLeft}>
@@ -199,7 +199,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
 
         {/* Phase 9: Offline-First & Cloud Synchronization */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionLabel}>PHASE 9 — OFFLINE-FIRST & SYNC QUEUE</Text>
+          <Text style={styles.sectionLabel}>SYNC & CONNECTIVITY</Text>
 
           <View style={styles.settingRow}>
             <View style={styles.settingLeft}>

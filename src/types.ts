@@ -68,6 +68,7 @@ export interface Habit {
   category?: string;
   description?: string;
   frequency?: HabitFrequency;
+  daysOfWeek?: string;
   goal?: string;
   target?: string;
   reminder?: string;
@@ -86,6 +87,7 @@ export interface HabitInput {
   category?: string;
   description?: string;
   frequency?: HabitFrequency;
+  daysOfWeek?: string;
   goal?: string;
   target?: string;
   reminder?: string;

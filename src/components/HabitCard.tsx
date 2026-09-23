@@ -41,12 +41,13 @@ export const HabitCard: React.FC<HabitCardProps> = ({
   // Icon and soft pastel colors matching reference design
   const getIconConfig = () => {
     const name = habit.name.toLowerCase();
+    const duration = habit.goal || habit.target || '15 min';
     if (name.includes('milk') || name.includes('water') || name.includes('drink')) {
       return {
         icon: 'water' as const,
         iconColor: '#C9773B',
         bgColor: '#F6EBE2',
-        duration: '5 min',
+        duration,
       };
     }
     if (name.includes('meditat') || name.includes('relax') || name.includes('mind')) {
@@ -54,7 +55,7 @@ export const HabitCard: React.FC<HabitCardProps> = ({
         icon: 'leaf' as const,
         iconColor: '#25B76B',
         bgColor: '#EAF6EE',
-        duration: '15 min',
+        duration,
       };
     }
     if (name.includes('stretch') || name.includes('yoga')) {
@@ -62,7 +63,7 @@ export const HabitCard: React.FC<HabitCardProps> = ({
         icon: 'fitness' as const,
         iconColor: '#4F8CFF',
         bgColor: '#EBF0FA',
-        duration: '10 min',
+        duration,
       };
     }
     if (name.includes('workout') || name.includes('exercise') || name.includes('gym')) {
@@ -70,7 +71,7 @@ export const HabitCard: React.FC<HabitCardProps> = ({
         icon: 'barbell' as const,
         iconColor: '#DF68C6',
         bgColor: '#FCEBF0',
-        duration: '30 min',
+        duration,
       };
     }
     if (name.includes('book') || name.includes('read') || name.includes('study')) {
@@ -78,14 +79,14 @@ export const HabitCard: React.FC<HabitCardProps> = ({
         icon: 'book' as const,
         iconColor: '#FF7A00',
         bgColor: '#FFF0E6',
-        duration: '20 min',
+        duration,
       };
     }
     return {
       icon: 'sparkles' as const,
       iconColor: '#FF7A00',
       bgColor: '#FFF0E6',
-      duration: habit.goal || '15 min',
+      duration,
     };
   };
 

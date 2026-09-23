@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
+import { getLocalDateKey, getMondayOfWeek, getSundayOfWeek } from '../utils/date';
 import type { Habit } from '../types';
 
 interface DayItem {
@@ -26,44 +27,34 @@ export const WeeklyCalendarBar: React.FC<WeeklyCalendarBarProps> = ({
 }) => {
   const [weekOffset, setWeekOffset] = useState(0);
 
-  const todayStr = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayStr = getLocalDateKey();
   const activeDate = selectedDate || todayStr;
 
   // Sync week offset if user clicks a date outside the current week offset
   React.useEffect(() => {
     if (!selectedDate) return;
-    const sel = new Date(selectedDate + 'T00:00:00');
+    const parts = selectedDate.split('-').map(Number);
+    const sel = new Date(parts[0], parts[1] - 1, parts[2]);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const diffDays = Math.round((sel.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     const targetOffset = Math.floor(diffDays / 7);
-    // Only adjust if drastically outside current week range
     if (Math.abs(targetOffset - weekOffset) > 1) {
       setWeekOffset(targetOffset);
     }
   }, [selectedDate]);
 
   const { days, weekLabel, rangeLabel } = React.useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Find Monday of the target week offset
-    const currentDayOfWeek = today.getDay(); // 0 = Sun, 1 = Mon
-    const mondayDiff = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
-    const monday = new Date(today);
-    monday.setDate(today.getDate() + mondayDiff + weekOffset * 7);
-
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
+    const monday = getMondayOfWeek(new Date(), weekOffset);
+    const sunday = getSundayOfWeek(monday);
 
     const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const result: DayItem[] = [];
 
     for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      const dateStr = d.toISOString().slice(0, 10);
+      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+      const dateStr = getLocalDateKey(d);
       const isToday = dateStr === todayStr;
 
       // Check completions from habits for this date

@@ -17,6 +17,7 @@ import { syncQueue } from '../services/syncQueue';
 import { syncEngine } from '../services/syncEngine';
 import { scheduleAllHabitReminders, scheduleHabitReminder } from '../services/notifications';
 import { mockHabits } from '../data/mockHabits';
+import { getLocalDateKey } from '../utils/date';
 import type { Habit, HabitHistoryEntry, HabitId, HabitInput, HabitUpdate } from '../types';
 
 type HabitAction =
@@ -44,7 +45,7 @@ export interface HabitContextValue {
 
 const HabitContext = createContext<HabitContextValue | undefined>(undefined);
 
-const toDateKey = (date = new Date()) => date.toISOString().slice(0, 10);
+const toDateKey = (date = new Date()) => getLocalDateKey(date);
 
 const updateTodayHistory = (
   history: HabitHistoryEntry[] | undefined,
@@ -177,8 +178,15 @@ export function HabitProvider({ children }: PropsWithChildren) {
         // Load offline cache
         const stored = await loadHabitsFromStorage();
         if (stored && stored.length > 0) {
-          dispatch({ type: 'set_all', habits: stored });
-          scheduleAllHabitReminders(stored);
+          const today = toDateKey();
+          const synced = stored.map((h) => ({
+            ...h,
+            completed:
+              h.completedDates?.includes(today) ||
+              (h.history?.some((e) => e.date === today && e.completed) ?? false),
+          }));
+          dispatch({ type: 'set_all', habits: synced });
+          scheduleAllHabitReminders(synced);
         } else {
           dispatch({ type: 'set_all', habits: mockHabits });
           await saveHabitsToStorage(mockHabits);
@@ -189,8 +197,15 @@ export function HabitProvider({ children }: PropsWithChildren) {
       console.warn('Could not fetch habits from server, using cached storage:', err);
       const stored = await loadHabitsFromStorage();
       if (stored && stored.length > 0) {
-        dispatch({ type: 'set_all', habits: stored });
-        scheduleAllHabitReminders(stored);
+        const today = toDateKey();
+        const synced = stored.map((h) => ({
+          ...h,
+          completed:
+            h.completedDates?.includes(today) ||
+            (h.history?.some((e) => e.date === today && e.completed) ?? false),
+        }));
+        dispatch({ type: 'set_all', habits: synced });
+        scheduleAllHabitReminders(synced);
       } else {
         dispatch({ type: 'set_all', habits: mockHabits });
         await saveHabitsToStorage(mockHabits);

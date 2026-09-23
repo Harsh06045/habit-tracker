@@ -18,6 +18,7 @@ import { Button } from '../components/Button';
 import { Header } from '../components/Header';
 import { useHabits } from '../context/HabitContext';
 import { theme } from '../theme';
+import { getLocalDateKey } from '../utils/date';
 import type { HabitFrequency } from '../types';
 
 type AddHabitScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddHabit'>;
@@ -39,12 +40,12 @@ const DAYS_OF_WEEK = [
 export const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation }) => {
   const { addHabit } = useHabits();
 
-  const [habitName, setHabitName] = useState('Morning Meditations');
+  const [habitName, setHabitName] = useState('');
   const [goalEnabled, setGoalEnabled] = useState(true);
   const [repeatEnabled, setRepeatEnabled] = useState(true);
   const [selectedDays, setSelectedDays] = useState<string[]>(['thu']);
-  const [goalDate, setGoalDate] = useState('Add date');
-  const [goalAmount, setGoalAmount] = useState('Add amount');
+  const [goalDate, setGoalDate] = useState('');
+  const [goalAmount, setGoalAmount] = useState('');
   const [getReminders, setGetReminders] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -57,6 +58,58 @@ export const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation }) =>
     }
   };
 
+  // Map short day keys to backend-compatible day names
+  const dayKeyToBackend: Record<string, string> = {
+    mon: 'MON',
+    tue: 'TUE',
+    wed: 'WED',
+    thu: 'THU',
+    fri: 'FRI',
+    sat: 'SAT',
+    sun: 'SUN',
+  };
+
+  // Derive frequency from selected days
+  const deriveFrequency = (): HabitFrequency => {
+    if (!repeatEnabled || selectedDays.length === 0) return 'Daily';
+    if (selectedDays.length === 7) return 'Daily';
+    const weekdays = ['mon', 'tue', 'wed', 'thu', 'fri'];
+    const isWeekdays =
+      selectedDays.length === 5 && weekdays.every((d) => selectedDays.includes(d));
+    if (isWeekdays) return 'Weekdays';
+    if (selectedDays.length === 1) return 'Weekly';
+    return 'Custom';
+  };
+
+  // Build daysOfWeek string from selected day buttons (e.g. "MON,THU,FRI")
+  const buildDaysOfWeek = (): string => {
+    if (!repeatEnabled || selectedDays.length === 0) {
+      return 'MON,TUE,WED,THU,FRI,SAT,SUN';
+    }
+    const orderedKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    return orderedKeys
+      .filter((k) => selectedDays.includes(k))
+      .map((k) => dayKeyToBackend[k])
+      .join(',');
+  };
+
+  // Parse goalDate into ISO startDate (YYYY-MM-DD) if user entered one
+  const parseStartDate = (): string => {
+    if (!goalDate.trim()) {
+      return getLocalDateKey();
+    }
+    // If already ISO format (YYYY-MM-DD), use directly
+    if (/^\d{4}-\d{2}-\d{2}$/.test(goalDate.trim())) {
+      return goalDate.trim();
+    }
+    // Try to parse any other date format
+    const parsed = new Date(goalDate.replace(',', ''));
+    if (!isNaN(parsed.getTime())) {
+      return getLocalDateKey(parsed);
+    }
+    return getLocalDateKey();
+  };
+
   const handleSave = async () => {
     if (!habitName.trim()) {
       setErrorMsg('Please enter a habit name');
@@ -66,13 +119,23 @@ export const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation }) =>
     setIsSaving(true);
     setErrorMsg('');
     try {
+      const frequency = deriveFrequency();
+      const daysOfWeek = buildDaysOfWeek();
+      const startDate = goalEnabled ? parseStartDate() : getLocalDateKey();
+      const goalValue = goalEnabled && goalAmount.trim() ? goalAmount.trim() : '15 min';
+
       await addHabit({
         name: habitName.trim(),
-        category: 'Mindfulness',
+        description: '',
+        category: 'General',
         color: '#FF6B00',
-        frequency: 'Daily',
-        goal: goalAmount !== 'Add amount' ? goalAmount : '15 min',
+        icon: 'sparkles',
+        frequency,
+        daysOfWeek,
+        goal: goalValue,
+        target: goalValue,
         reminder: getReminders ? '8:00 AM' : undefined,
+        startDate,
         streak: 0,
         completed: false,
       });
@@ -167,25 +230,29 @@ export const AddHabitScreen: React.FC<AddHabitScreenProps> = ({ navigation }) =>
             </View>
 
             <View style={styles.twoColumnRow}>
-              {/* Add Date Box */}
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setGoalDate(goalDate === 'Add date' ? '10 March, 2025' : 'Add date')}
-                style={styles.pillInput}
-              >
-                <Text style={styles.pillInputText}>{goalDate}</Text>
+              {/* Goal Date Input */}
+              <View style={styles.pillInput}>
+                <TextInput
+                  onChangeText={setGoalDate}
+                  placeholder="e.g. 2026-10-01"
+                  placeholderTextColor="#847D77"
+                  style={styles.pillInputField}
+                  value={goalDate}
+                />
                 <Ionicons color="#847D77" name="calendar-outline" size={16} />
-              </TouchableOpacity>
+              </View>
 
-              {/* Add Amount Box */}
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setGoalAmount(goalAmount === 'Add amount' ? '15 min / day' : 'Add amount')}
-                style={styles.pillInput}
-              >
-                <Text style={styles.pillInputText}>{goalAmount}</Text>
-                <Ionicons color="#847D77" name="chevron-down" size={16} />
-              </TouchableOpacity>
+              {/* Goal Amount Input */}
+              <View style={styles.pillInput}>
+                <TextInput
+                  onChangeText={setGoalAmount}
+                  placeholder="e.g. 15 min"
+                  placeholderTextColor="#847D77"
+                  style={styles.pillInputField}
+                  value={goalAmount}
+                />
+                <Ionicons color="#847D77" name="timer-outline" size={16} />
+              </View>
             </View>
           </View>
 
@@ -425,6 +492,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: '#847D77',
+  },
+  pillInputField: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#221C18',
   },
   daysRow: {
     flexDirection: 'row',

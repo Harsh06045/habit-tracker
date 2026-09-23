@@ -23,6 +23,7 @@ import { useAuth } from '../context/AuthContext';
 import { useHabits } from '../context/HabitContext';
 import { api } from '../services/api';
 import { theme } from '../theme';
+import { getLocalDateKey, formatHeaderDate, formatLiveTime, getTimeGreeting } from '../utils/date';
 import type { Habit, GamificationProfile } from '../types';
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
@@ -37,13 +38,30 @@ interface HomeScreenProps {
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { user } = useAuth();
   const { habits, toggleHabit, isHydrated, isLoading, refreshHabits } = useHabits();
-  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+  // Live time synchronization: ticks every 10 seconds to update clock, greeting, and midnight date transition
+  const [now, setNow] = useState(() => new Date());
+
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 10000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const todayStr = useMemo(() => getLocalDateKey(now), [now]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => getLocalDateKey());
   const [filterMode, setFilterMode] = useState<'Today' | 'All' | 'Pending'>('Today');
   const [gamification, setGamification] = useState<GamificationProfile | null>(null);
   const [pointsToast, setPointsToast] = useState<string | null>(null);
 
+  // If user was viewing today and midnight rolls over, keep selectedDate synced with new today
   const isViewingToday = selectedDate === todayStr;
+
+  React.useEffect(() => {
+    if (isViewingToday) {
+      setSelectedDate(todayStr);
+    }
+  }, [todayStr]);
 
   const loadGamification = async () => {
     try {
@@ -69,24 +87,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     loadGamification();
   };
 
-  // Dynamically compute greeting according to the real local time of the day
-  const timeGreeting = useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) return 'Good Morning,';
-    if (hour >= 12 && hour < 17) return 'Good Afternoon,';
-    if (hour >= 17 && hour < 22) return 'Good Evening,';
-    return 'Good Night,';
-  }, []);
+  // Dynamically compute greeting according to real local time
+  const timeGreeting = useMemo(() => getTimeGreeting(now), [now]);
+  const liveTime = useMemo(() => formatLiveTime(now), [now]);
 
-  // Format date like "Thursday, 10 March, 2025" or the selected past date
+  // Format date like "Wednesday, 23 September, 2026"
   const formattedHeaderDate = useMemo(() => {
-    const [y, m, d] = (isViewingToday ? todayStr : selectedDate).split('-').map(Number);
-    const dateObj = new Date(y, m - 1, d);
-    const weekday = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-    const day = dateObj.getDate();
-    const month = dateObj.toLocaleDateString('en-US', { month: 'long' });
-    const year = dateObj.getFullYear();
-    return `${weekday}, ${day} ${month}, ${year}`;
+    return formatHeaderDate(isViewingToday ? todayStr : selectedDate);
   }, [isViewingToday, todayStr, selectedDate]);
 
   // Check if a habit was completed on the selectedDate
@@ -158,9 +165,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               <View style={styles.topHeaderRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.greetingTitle}>
-                    {isViewingToday ? `${timeGreeting}\nHi 👋` : 'Viewing History'}
+                    {isViewingToday ? `${timeGreeting}\nHi${user?.name ? `, ${user.name}` : ''} 👋` : 'Viewing History'}
                   </Text>
-                  <Text style={styles.dateSubtitle}>{formattedHeaderDate}</Text>
+                  <View style={styles.dateRow}>
+                    <Text style={styles.dateSubtitle}>{formattedHeaderDate}</Text>
+                    {isViewingToday && (
+                      <View style={styles.liveClockBadge}>
+                        <View style={styles.livePulseDot} />
+                        <Text style={styles.liveClockText}>{liveTime}</Text>
+                      </View>
+                    )}
+                  </View>
 
                   {/* Gamification Points & Level Pill */}
                   <View style={styles.gamificationPill}>
@@ -319,7 +334,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#9E9790',
     fontWeight: '500',
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginTop: 3,
+  },
+  liveClockBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FAF5ED',
+    borderWidth: 1,
+    borderColor: '#EFE3D3',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 5,
+  },
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#25B76B',
+  },
+  liveClockText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#3E2F2B',
   },
   avatarOuterRing: {
     width: 48,

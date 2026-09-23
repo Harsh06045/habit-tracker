@@ -21,6 +21,7 @@ import { Button } from '../components/Button';
 import { Header } from '../components/Header';
 import { useHabits } from '../context/HabitContext';
 import { theme } from '../theme';
+import { getLocalDateKey } from '../utils/date';
 import type { HabitFrequency } from '../types';
 
 type EditHabitScreenRouteProp = RouteProp<RootStackParamList, 'EditHabit'>;
@@ -65,8 +66,16 @@ export const EditHabitScreen: React.FC<EditHabitScreenProps> = ({
   const [reminder, setReminder] = useState(habit?.reminder || '08:00 AM');
   const [getReminders, setGetReminders] = useState(Boolean(habit?.reminder));
   const [frequency, setFrequency] = useState<HabitFrequency>(habit?.frequency || 'Daily');
-  const [startDate, setStartDate] = useState(habit?.startDate || habit?.createdAt || '2026-09-22');
-  const [selectedDays, setSelectedDays] = useState<string[]>(['mon', 'tue', 'wed', 'thu', 'fri']);
+  const [startDate, setStartDate] = useState(habit?.startDate || habit?.createdAt || getLocalDateKey());
+  const [selectedDays, setSelectedDays] = useState<string[]>(() => {
+    if (habit?.daysOfWeek) {
+      const backendToKey: Record<string, string> = {
+        MON: 'mon', TUE: 'tue', WED: 'wed', THU: 'thu', FRI: 'fri', SAT: 'sat', SUN: 'sun',
+      };
+      return habit.daysOfWeek.split(',').map((d) => backendToKey[d.trim()] || d.toLowerCase()).filter(Boolean);
+    }
+    return ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  });
   const [errorMsg, setErrorMsg] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -90,6 +99,19 @@ export const EditHabitScreen: React.FC<EditHabitScreenProps> = ({
     }
   };
 
+  // Map short day keys to backend-compatible day names
+  const dayKeyToBackend: Record<string, string> = {
+    mon: 'MON', tue: 'TUE', wed: 'WED', thu: 'THU', fri: 'FRI', sat: 'SAT', sun: 'SUN',
+  };
+
+  const buildDaysOfWeek = (): string => {
+    const orderedKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    return orderedKeys
+      .filter((k) => selectedDays.includes(k))
+      .map((k) => dayKeyToBackend[k])
+      .join(',') || 'MON,TUE,WED,THU,FRI,SAT,SUN';
+  };
+
   const handleUpdate = async () => {
     if (!habitName.trim()) {
       setErrorMsg('Please enter a habit name');
@@ -99,8 +121,12 @@ export const EditHabitScreen: React.FC<EditHabitScreenProps> = ({
     try {
       await updateHabit(habit.id, {
         name: habitName.trim(),
+        description: habit.description || '',
         icon: selectedIcon,
+        color: habit.color || '#FF6B00',
+        category: habit.category || 'General',
         frequency,
+        daysOfWeek: buildDaysOfWeek(),
         goal: target.trim(),
         target: target.trim(),
         reminder: getReminders ? reminder : undefined,

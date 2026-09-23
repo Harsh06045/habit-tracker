@@ -20,6 +20,7 @@ import { useAuth } from '../context/AuthContext';
 import { useHabits } from '../context/HabitContext';
 import { api } from '../services/api';
 import { theme } from '../theme';
+import { getLocalDateKey, getMondayOfWeek, getSundayOfWeek } from '../utils/date';
 import type { MonthStats, WeekStats, GamificationProfile } from '../types';
 
 type ProgressScreenNavigationProp = CompositeNavigationProp<
@@ -66,6 +67,27 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ navigation }) =>
     loadStats();
   }, [loadStats]);
 
+  // Derive dynamic time ranges based on current time and date
+  const now = new Date();
+  const currentMonday = getMondayOfWeek(now);
+  const currentSunday = getSundayOfWeek(currentMonday);
+  const weekStartShort = currentMonday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const weekEndShort = currentSunday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const weekDateRange = `${weekStartShort} – ${weekEndShort}`;
+  const currentMonthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  // Generate this week's 7 ISO date keys (Mon - Sun)
+  const currentWeekDates = React.useMemo(() => {
+    const dates: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(currentMonday.getFullYear(), currentMonday.getMonth(), currentMonday.getDate() + i);
+      dates.push(getLocalDateKey(d));
+    }
+    return dates;
+  }, [currentMonday]);
+
+  const currentYearMonth = getLocalDateKey(now).slice(0, 7); // e.g. "2026-09"
+
   // Derive top capsule charts
   const activeHabitsList = (timeframe === 'Week' ? weekStats?.habits : monthStats?.habits) || [];
 
@@ -80,12 +102,24 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ navigation }) =>
       }))
     : habits.length > 0
     ? habits.slice(0, 4).map((h, idx) => {
-        const pct = h.completed ? 100 : (h.totalCompletions ? Math.min(100, h.totalCompletions * 20) : 0);
+        let pct = 0;
+        if (timeframe === 'Week') {
+          const completedThisWeek = currentWeekDates.filter((d) => {
+            if (d === getLocalDateKey()) return h.completed;
+            return h.completedDates?.includes(d) || h.history?.some((e) => e.date === d && e.completed);
+          }).length;
+          const dayIdx = ((now.getDay() + 6) % 7) + 1; // 1 for Mon ... 7 for Sun
+          pct = Math.round((completedThisWeek / Math.max(1, dayIdx)) * 100);
+        } else {
+          const completedThisMonth = (h.completedDates || []).filter((d) => d.startsWith(currentYearMonth)).length +
+            (h.completed && !h.completedDates?.includes(getLocalDateKey()) ? 1 : 0);
+          pct = Math.round((completedThisMonth / Math.max(1, now.getDate())) * 100);
+        }
         return {
           id: h.id,
           label: h.name.length > 9 ? h.name.slice(0, 8) + '…' : h.name,
           fullName: h.name,
-          percentage: pct,
+          percentage: Math.min(100, Math.max(0, pct)),
           streak: h.streak,
           fillColor: h.color || DEFAULT_COLORS[idx % DEFAULT_COLORS.length],
         };
@@ -97,13 +131,13 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ navigation }) =>
         { id: 4, label: 'Meditate', fullName: 'Meditate to relax', percentage: 0, streak: 0, fillColor: '#DF68C6' },
       ];
 
-  // Calculate points and metrics from starting zero state
+  // Calculate points and metrics from current state
   const totalCompleted = weekStats?.totalCompleted ?? habits.filter((h) => h.completed).length;
   const bestStreak = monthStats?.bestStreak ?? (habits.length > 0 ? Math.max(...habits.map((h) => h.streak), 0) : 0);
   const points = gamification?.totalPoints ?? (totalCompleted * 10);
   const overallPercentage = timeframe === 'Week'
-    ? (weekStats?.completionPercentage ?? (habits.length > 0 ? Math.round((habits.filter((h) => h.completed).length / habits.length) * 100) : 0))
-    : (monthStats?.completionPercentage ?? 0);
+    ? (weekStats?.completionPercentage ?? (chartItems.length > 0 ? Math.round(chartItems.reduce((acc, c) => acc + c.percentage, 0) / chartItems.length) : 0))
+    : (monthStats?.completionPercentage ?? (chartItems.length > 0 ? Math.round(chartItems.reduce((acc, c) => acc + c.percentage, 0) / chartItems.length) : 0));
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -192,7 +226,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ navigation }) =>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.progressTitle}>Your Progress</Text>
             <Text style={styles.sectionSubBadge}>
-              {timeframe === 'Week' ? 'Weekly Rate' : 'Monthly Rate'}
+              {timeframe === 'Week' ? `Week of ${weekStartShort}` : currentMonthName}
             </Text>
           </View>
 
@@ -228,7 +262,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({ navigation }) =>
             <View>
               <Text style={styles.pointsTitle}>Points Earned</Text>
               <Text style={styles.pointsSubtitle}>
-                {timeframe === 'Week' ? 'For this week' : 'For this month'}
+                {timeframe === 'Week' ? `This week (${weekDateRange})` : `This month (${currentMonthName})`}
               </Text>
             </View>
             <Text style={styles.pointsValue}>

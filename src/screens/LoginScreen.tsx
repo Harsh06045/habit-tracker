@@ -34,6 +34,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
+  const [offlineInfo, setOfflineInfo] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async () => {
@@ -58,7 +59,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       navigation.navigate('MainTabs');
     } catch {
       // Offline-first guaranteed entry
-      navigation.navigate('MainTabs');
+      setOfflineInfo('Signed in offline — your data will sync when connected.');
+      setTimeout(() => {
+        navigation.navigate('MainTabs');
+      }, 1200);
     } finally {
       setIsLoading(false);
     }
@@ -130,6 +134,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               <View style={styles.errorBox}>
                 <Ionicons color={theme.colors.danger} name="alert-circle" size={16} />
                 <Text style={styles.errorText}>{errorMsg}</Text>
+              </View>
+            ) : null}
+
+            {offlineInfo ? (
+              <View style={styles.offlineInfoBox}>
+                <Ionicons color="#FF6B00" name="cloud-offline-outline" size={16} />
+                <Text style={styles.offlineInfoText}>{offlineInfo}</Text>
               </View>
             ) : null}
 
@@ -247,10 +258,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                 try {
                   await login(email || 'saboor@habittracker.com', password || 'password123');
                 } catch {
-                  // Offline-first: always proceed even if login fails
+                  setOfflineInfo('Entering offline mode...');
                 }
                 setIsLoading(false);
-                navigation.navigate('MainTabs');
+                setTimeout(() => navigation.navigate('MainTabs'), 600);
               }}
               style={styles.instantDemoBtn}
             >
@@ -507,5 +518,22 @@ const styles = StyleSheet.create({
     color: '#FF6B00',
     fontSize: 14,
     fontWeight: '700',
+  },
+  offlineInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8F0',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 14,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#FFE3B3',
+  },
+  offlineInfoText: {
+    color: '#B45309',
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
   },
 });

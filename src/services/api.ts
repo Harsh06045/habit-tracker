@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getLocalDateKey } from '../utils/date';
 import type {
   AuthResponse,
   BackendHabit,
@@ -190,7 +191,7 @@ async function apiRequest<T>(
 
 // Convert Backend DTO to Frontend Habit model
 export function backendHabitToHabit(b: BackendHabit): Habit {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalDateKey();
   const freq = (b.frequency ? b.frequency.charAt(0) + b.frequency.slice(1).toLowerCase() : 'Daily') as HabitFrequency;
 
   return {
@@ -203,6 +204,7 @@ export function backendHabitToHabit(b: BackendHabit): Habit {
     category: b.category || 'General',
     description: b.description || '',
     frequency: freq,
+    daysOfWeek: b.daysOfWeek || 'MON,TUE,WED,THU,FRI,SAT,SUN',
     goal: `${b.targetCount ?? 15} ${b.targetUnit ?? 'min'}`,
     target: `${b.targetCount ?? 15} ${b.targetUnit ?? 'min'}`,
     reminder: b.reminderTime ? b.reminderTime.slice(0, 5) : undefined,
@@ -254,10 +256,11 @@ export function habitInputToBackend(input: HabitInput): BackendHabitRequest {
     color: input.color || '#FF6B00',
     icon: input.icon || 'sparkles',
     frequency: input.frequency ? freqMap[input.frequency] || 'DAILY' : 'DAILY',
+    daysOfWeek: input.daysOfWeek || 'MON,TUE,WED,THU,FRI,SAT,SUN',
     targetCount,
     targetUnit,
     reminderTime,
-    startDate: input.startDate || new Date().toISOString().slice(0, 10),
+    startDate: input.startDate || getLocalDateKey(),
   };
 }
 
